@@ -1,7 +1,7 @@
 # ASP Store V1.0
 
 > This repository contains the solidity contracts utilised by the Association
-> Set Provider to store Inclusion / exclusion sets.
+> Set Prorivder (ASP) to support Protocol Integrations.
 > It also contains go & ts packages that provides the necessary
 > interfaces to interact with the contracts.
 
