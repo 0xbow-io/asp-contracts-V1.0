@@ -87,6 +87,10 @@ The ASP then will kick-off the relevant services to aggregate all the record eve
 - **Querying**: The ASP provides a set of public functions to query the categories of the record events.
 - **Inclusion Proof**: An inclusion proof can be generated off-chain to verify that a record event is known to the ASP
 
-### Example integration Uniswap V2
+Here are some case studies of protocol integrations:
+
+#### Uniswap V2 Protocol
+
+### ERC-4337
 
 ### Case Study: Privacy Pool Integration
