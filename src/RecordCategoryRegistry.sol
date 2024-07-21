@@ -3,7 +3,8 @@ pragma solidity ^0.8.4;
 
 /*  OpenZeppelin Imports */
 import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
-import {AccessControlDefaultAdminRules} from "@openzeppelin/contracts/access/extensions/AccessControlDefaultAdminRules.sol";
+import {AccessControlDefaultAdminRules} from
+    "@openzeppelin/contracts/access/extensions/AccessControlDefaultAdminRules.sol";
 /*  Zk-kit Imports */
 import {InternalLeanIMT, LeanIMTData} from "zk-kit.solidity/packages/lean-imt/contracts/InternalLeanIMT.sol";
 
@@ -48,7 +49,7 @@ contract RecordCategoryRegistry is AccessControlDefaultAdminRules {
 
     /// @dev role identifier used to grant addresses ability to
     ///      update records in the store & recordTrees,
-    bytes32 public constant STORE_ADMIN_ROLE = keccak256("STORE_ADMIN_ROLE");
+    bytes32 public constant REGISTRY_ADMIN_ROLE = keccak256("REGISTRY_ADMIN_ROLE");
 
     /// @notice Mapping of protocol scopes to their record categories
     /// @dev This mapping stores the category bitmaps for each record hash within a protocol scope
@@ -62,8 +63,7 @@ contract RecordCategoryRegistry is AccessControlDefaultAdminRules {
     ///      - bit 1 (000..01): denied
     ///      - bit 2 (000..10): approved
     /// @notice  ⚠️ records cannot be removed or deleted.
-    mapping(uint256 scope => EnumerableMap.Bytes32ToBytes32Map recCatMap)
-        private _scopeRecordCategories;
+    mapping(uint256 scope => EnumerableMap.Bytes32ToBytes32Map recCatMap) private _scopeRecordCategories;
 
     /// @notice Mapping of protocol scopes to their Merkle trees of record hashes
     /// @dev This mapping stores Merkle trees for efficient proof generation of record inclusion
@@ -78,8 +78,7 @@ contract RecordCategoryRegistry is AccessControlDefaultAdminRules {
     ///     iterate through the tree leaf nodes.
     ///     Instead iterate through recCatMap will iterate through the leaf nodes.
     ///     using the at(..) function from EnumerableMap.Bytes32ToBytes32Map library.
-    mapping(uint256 scope => LeanIMTData merkleTree)
-        private _scopeRecordMerkleTrees;
+    mapping(uint256 scope => LeanIMTData merkleTree) private _scopeRecordMerkleTrees;
 
     /*//////////////////////////////////////////////////////////////////////////
                             ***MODIFIERS***
@@ -104,27 +103,24 @@ contract RecordCategoryRegistry is AccessControlDefaultAdminRules {
     /*//////////////////////////////////////////////////////////////////////////
                             ***CONTRACT CONSTRUCTOR***
     //////////////////////////////////////////////////////////////////////////*/
-    constructor()
-        AccessControlDefaultAdminRules(
-            3 days,
-            msg.sender /// Explicit initial `DEFAULT_ADMIN_ROLE` holder
-        )
+    constructor(address _registryAdmin) AccessControlDefaultAdminRules(3 days, msg.sender) 
+    /// Explicit initial `DEFAULT_ADMIN_ROLE` holder
     {
         /// Grant the contract deployer the ability to create stores
-        GrantStoreAdminRole(msg.sender);
+        GrantRegistryAdminRole(_registryAdmin);
     }
 
     /*//////////////////////////////////////////////////////////////////////////
                             ***ADMIN FUNCTIONS***
     //////////////////////////////////////////////////////////////////////////*/
-    /// @dev GrantStoreCreatorRole grants the STORE_ADMIN_ROLE to an address
+    /// @dev GrantRegistryAdminRole grants the REGISTRY_ADMIN_ROLE to an address
     /// @param account the address to grant the role to
-    function GrantStoreAdminRole(address account) public AdminOnly {
-        grantRole(STORE_ADMIN_ROLE, account);
+    function GrantRegistryAdminRole(address account) public AdminOnly {
+        grantRole(REGISTRY_ADMIN_ROLE, account);
     }
 
     /*//////////////////////////////////////////////////////////////////////////
-                            ***STORE_ADMIN_ROLE FUNCTIONS***
+                            ***REGISTRY_ADMIN_ROLE FUNCTIONS***
     //////////////////////////////////////////////////////////////////////////*/
     /**
      * @notice Sets or updates the category for a record within a specific protocol scope
@@ -135,13 +131,13 @@ contract RecordCategoryRegistry is AccessControlDefaultAdminRules {
      * @param _scope The unique identifier of the protocol instance
      * @param _recordHash The hash of the record event
      * @param _categoryBitmap A bytes32 representing the categories as a bitmap
-     * @custom:access ⚠️ Restricted to accounts with STORE_ADMIN_ROLE
-     **/
-    function SetCategoryForRecord(
-        uint256 _scope,
-        bytes32 _recordHash,
-        bytes32 _categoryBitmap
-    ) public SufficientRole(STORE_ADMIN_ROLE) {
+     * @custom:access ⚠️ Restricted to accounts with REGISTRY_ADMIN_ROLE
+     *
+     */
+    function SetCategoryForRecord(uint256 _scope, bytes32 _recordHash, bytes32 _categoryBitmap)
+        public
+        SufficientRole(REGISTRY_ADMIN_ROLE)
+    {
         // get current merkle root
         uint256 root = _scopeRecordMerkleTrees[_scope]._root();
         /// .set() will return true/false if recordHash is an existing key
@@ -149,9 +145,7 @@ contract RecordCategoryRegistry is AccessControlDefaultAdminRules {
         if (!_scopeRecordCategories[_scope].set(_recordHash, _categoryBitmap)) {
             /// update the merkle tree with the new record hash
             /// and apply the new root value
-            root = _scopeRecordMerkleTrees[_scope]._insert(
-                uint256(_recordHash)
-            );
+            root = _scopeRecordMerkleTrees[_scope]._insert(uint256(_recordHash));
         }
         /// announce update by emitting an Update event
         emit Update(_scope, root, _scopeRecordCategories[_scope].length());
@@ -160,137 +154,40 @@ contract RecordCategoryRegistry is AccessControlDefaultAdminRules {
     /*//////////////////////////////////////////////////////////////////////////
                             ***GENERAL PUBLIC FUNCTIONS***
     //////////////////////////////////////////////////////////////////////////*/
-    function getCategoryBitmap(
-        uint256 scope,
-        bytes32 recordHash
-    ) external view returns (bytes32 categoryBitmap) {
-        (bool exists, bytes32 bitmap) = _scopeRecordCategories[scope].tryGet(
-            recordHash
-        );
+    function getCategoryBitmap(uint256 scope, bytes32 recordHash) public view returns (bytes32 categoryBitmap) {
+        (bool exists, bytes32 bitmap) = _scopeRecordCategories[scope].tryGet(recordHash);
         require(exists, "Record not found");
         return bitmap;
     }
 
-    function getRecordHashesAndCategories(
-        uint256 scope,
-        uint256 from,
-        uint256 to
-    )
-        external
+    function getRecordHashAndCategoryAt(uint256 scope, uint256 index)
+        public
         view
-        returns (
-            bytes32[] memory recordHashes,
-            bytes32[] memory categoryBitmaps
-        )
+        returns (bytes32 category, bytes32 recordHash)
     {
-        require(
-            from < to && to <= _scopeRecordCategories[scope].length(),
-            "Invalid range"
-        );
+        return _scopeRecordCategories[scope].at(index);
+    }
+
+    function getCategoryForRecordHash(uint256 scope, bytes32 recordHash)
+        public
+        view
+        returns (bool exists, bytes32 categoryBitmap)
+    {
+        return _scopeRecordCategories[scope].tryGet(recordHash);
+    }
+
+    function getRecordHashesAndCategories(uint256 scope, uint256 from, uint256 to)
+        public
+        view
+        returns (bytes32[] memory recordHashes, bytes32[] memory categoryBitmaps)
+    {
+        require(from < to && to <= _scopeRecordCategories[scope].length(), "Invalid range");
         uint256 length = to - from;
         recordHashes = new bytes32[](length);
         categoryBitmaps = new bytes32[](length);
 
         for (uint256 i = 0; i < length; i++) {
-            (recordHashes[i], categoryBitmaps[i]) = _scopeRecordCategories[
-                scope
-            ].at(from + i);
+            (categoryBitmaps[i], recordHashes[i]) = _scopeRecordCategories[scope].at(from + i);
         }
-    }
-
-    /*//////////////////////////////////////////////////////////////////////////
-                 ***ASSOCIATION-SET RELEVANT PUBLIC FUNCTIONS***
-    //////////////////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Applies a predicate to filter elements based on their properties
-     *
-     * @dev Uses bitwise operations to perform set operations on element properties
-     *
-     * @param domain The context or scope in which to apply the predicate
-     * @param subset Array of elements to filter
-     * @param characteristicFunction Bitmap representing the properties to filter by
-     * @param predicateType The type of set operation to perform (Intersection, Union, or Complement)
-     * @return elements The elements that satisfy the predicate
-     * @return setCardinality The number of elements that satisfy the predicate
-     **/
-
-    function applyPredicate(
-        uint256 domain,
-        bytes32[] calldata subset,
-        bytes32 characteristicFunction,
-        PredicateType predicateType
-    )
-        external
-        view
-        returns (bytes32[] memory elements, uint256 setCardinality)
-    {
-        bytes32[] memory satisfyingElements = new bytes32[](subset.length);
-        setCardinality = 0;
-        // cach set for the domain
-        EnumerableMap.Bytes32ToBytes32Map
-            storage _domain = _scopeRecordCategories[domain];
-
-        for (uint256 i = 0; i < subset.length; i++) {
-            bytes32 element = subset[i];
-            (bool isMember, bytes32 elementProperties) = _domain.tryGet(
-                element
-            );
-            if (!isMember) {
-                continue;
-            }
-            if (
-                _applyPredicate(
-                    predicateType,
-                    characteristicFunction,
-                    elementProperties
-                )
-            ) {
-                satisfyingElements[setCardinality] = element;
-                setCardinality++;
-            }
-        }
-
-        // Resize the array to remove empty slots (maintain proper cardinality)
-        assembly {
-            mstore(satisfyingElements, setCardinality)
-        }
-
-        return (satisfyingElements, setCardinality);
-    }
-
-    /*//////////////////////////////////////////////////////////////////////////
-                            INTERNAL FUNCTIONS
-    //////////////////////////////////////////////////////////////////////////*/
-    /**
-     * @notice Checks if an element satisfies a predicate based on its properties
-     *
-     * @dev Uses bitwise operations to perform set operations on element properties
-     *
-     * @param characteristicFunction Bitmap representing the properties to filter by
-     * @param predicateType The type of set operation to perform (Intersection, Union, or Complement)
-     * @param elementProperties Bitmap representing the properties of the element
-     * @return satisfiesPredicate Whether the element satisfies the predicate
-     **/
-    function _applyPredicate(
-        PredicateType predicateType,
-        bytes32 characteristicFunction,
-        bytes32 elementProperties
-    ) internal pure returns (bool satisfiesPredicate) {
-        if (predicateType == PredicateType.Intersection) {
-            // Intersection: element must have all properties defined in the characteristic function
-            satisfiesPredicate =
-                (elementProperties & characteristicFunction) ==
-                characteristicFunction;
-        } else if (predicateType == PredicateType.Union) {
-            // Union: element must have at least one property defined in the characteristic function
-            satisfiesPredicate =
-                (elementProperties & characteristicFunction) != 0;
-        } else if (predicateType == PredicateType.Complement) {
-            // Complement: element must not have any properties defined in the characteristic function
-            satisfiesPredicate =
-                (elementProperties & characteristicFunction) == 0;
-        }
-        return false;
     }
 }
