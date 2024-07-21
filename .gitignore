@@ -40,3 +40,10 @@ docs/
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# Node.js
+node_modules/
+
+# Bun
+.bun-cache/
+bun.lockb
