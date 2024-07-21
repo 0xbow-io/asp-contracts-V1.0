@@ -30,6 +30,16 @@ contract RecordCategoryRegistry is AccessControlDefaultAdminRules {
     error SenderIsNotAdmin(address sender);
     error InsufficientRole(address sender, bytes32 role);
 
+    /// @notice Defines the type of predicate to apply
+    /// @dev Intersection: all bits must match
+    /// @dev Union: at least one bit must match,
+    /// @dev Complement: no bits should match
+    enum PredicateType {
+        Intersection,
+        Union,
+        Complement
+    }
+
     /// @notice Emitted when a record category is set or updated
     /// @param scope The protocol scope identifier
     /// @param root The new Merkle root after the update
@@ -122,30 +132,165 @@ contract RecordCategoryRegistry is AccessControlDefaultAdminRules {
      * @dev This function adds a new record or updates an existing one's category, and
      *     updates the Merkle tree if necessary.
      *
-     * @param scope The unique identifier of the protocol instance
-     * @param recordHash The hash of the record event
-     * @param categoryBitmap A bytes32 representing the categories as a bitmap
+     * @param _scope The unique identifier of the protocol instance
+     * @param _recordHash The hash of the record event
+     * @param _categoryBitmap A bytes32 representing the categories as a bitmap
      * @custom:access ⚠️ Restricted to accounts with STORE_ADMIN_ROLE
      **/
     function SetCategoryForRecord(
-        uint256 calldata scope,
-        bytes32 calldata recordHash,
-        bytes32 calldata categoryBitmap
+        uint256 _scope,
+        bytes32 _recordHash,
+        bytes32 _categoryBitmap
     ) public SufficientRole(STORE_ADMIN_ROLE) {
         // get current merkle root
-        uint256 root = _scopeRecordMerkleTrees[scope]._root();
+        uint256 root = _scopeRecordMerkleTrees[_scope]._root();
         /// .set() will return true/false if recordHash is an existing key
         /// if not an existing key, it means the record hash is new
-        if (!_scopeRecordCategories[scope].set(recordHash, categoryBitmap)) {
+        if (!_scopeRecordCategories[_scope].set(_recordHash, _categoryBitmap)) {
             /// update the merkle tree with the new record hash
             /// and apply the new root value
-            root = _scopeRecordMerkleTrees[scope]._insert(recordHash);
+            root = _scopeRecordMerkleTrees[_scope]._insert(
+                uint256(_recordHash)
+            );
         }
         /// announce update by emitting an Update event
-        emit Update(scope, root, _scopeRecordCategories[scope].length());
+        emit Update(_scope, root, _scopeRecordCategories[_scope].length());
+    }
+
+    /*//////////////////////////////////////////////////////////////////////////
+                            ***GENERAL PUBLIC FUNCTIONS***
+    //////////////////////////////////////////////////////////////////////////*/
+    function getCategoryBitmap(
+        uint256 scope,
+        bytes32 recordHash
+    ) external view returns (bytes32 categoryBitmap) {
+        (bool exists, bytes32 bitmap) = _scopeRecordCategories[scope].tryGet(
+            recordHash
+        );
+        require(exists, "Record not found");
+        return bitmap;
+    }
+
+    function getRecordHashesAndCategories(
+        uint256 scope,
+        uint256 from,
+        uint256 to
+    )
+        external
+        view
+        returns (
+            bytes32[] memory recordHashes,
+            bytes32[] memory categoryBitmaps
+        )
+    {
+        require(
+            from < to && to <= _scopeRecordCategories[scope].length(),
+            "Invalid range"
+        );
+        uint256 length = to - from;
+        recordHashes = new bytes32[](length);
+        categoryBitmaps = new bytes32[](length);
+
+        for (uint256 i = 0; i < length; i++) {
+            (recordHashes[i], categoryBitmaps[i]) = _scopeRecordCategories[
+                scope
+            ].at(from + i);
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////////////////
+                 ***ASSOCIATION-SET RELEVANT PUBLIC FUNCTIONS***
+    //////////////////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Applies a predicate to filter elements based on their properties
+     *
+     * @dev Uses bitwise operations to perform set operations on element properties
+     *
+     * @param domain The context or scope in which to apply the predicate
+     * @param subset Array of elements to filter
+     * @param characteristicFunction Bitmap representing the properties to filter by
+     * @param predicateType The type of set operation to perform (Intersection, Union, or Complement)
+     * @return elements The elements that satisfy the predicate
+     * @return setCardinality The number of elements that satisfy the predicate
+     **/
+
+    function applyPredicate(
+        uint256 domain,
+        bytes32[] calldata subset,
+        bytes32 characteristicFunction,
+        PredicateType predicateType
+    )
+        external
+        view
+        returns (bytes32[] memory elements, uint256 setCardinality)
+    {
+        bytes32[] memory satisfyingElements = new bytes32[](subset.length);
+        setCardinality = 0;
+        // cach set for the domain
+        EnumerableMap.Bytes32ToBytes32Map
+            storage _domain = _scopeRecordCategories[domain];
+
+        for (uint256 i = 0; i < subset.length; i++) {
+            bytes32 element = subset[i];
+            (bool isMember, bytes32 elementProperties) = _domain.tryGet(
+                element
+            );
+            if (!isMember) {
+                continue;
+            }
+            if (
+                _applyPredicate(
+                    predicateType,
+                    characteristicFunction,
+                    elementProperties
+                )
+            ) {
+                satisfyingElements[setCardinality] = element;
+                setCardinality++;
+            }
+        }
+
+        // Resize the array to remove empty slots (maintain proper cardinality)
+        assembly {
+            mstore(satisfyingElements, setCardinality)
+        }
+
+        return (satisfyingElements, setCardinality);
     }
 
     /*//////////////////////////////////////////////////////////////////////////
                             INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*/
+    /**
+     * @notice Checks if an element satisfies a predicate based on its properties
+     *
+     * @dev Uses bitwise operations to perform set operations on element properties
+     *
+     * @param characteristicFunction Bitmap representing the properties to filter by
+     * @param predicateType The type of set operation to perform (Intersection, Union, or Complement)
+     * @param elementProperties Bitmap representing the properties of the element
+     * @return satisfiesPredicate Whether the element satisfies the predicate
+     **/
+    function _applyPredicate(
+        PredicateType predicateType,
+        bytes32 characteristicFunction,
+        bytes32 elementProperties
+    ) internal pure returns (bool satisfiesPredicate) {
+        if (predicateType == PredicateType.Intersection) {
+            // Intersection: element must have all properties defined in the characteristic function
+            satisfiesPredicate =
+                (elementProperties & characteristicFunction) ==
+                characteristicFunction;
+        } else if (predicateType == PredicateType.Union) {
+            // Union: element must have at least one property defined in the characteristic function
+            satisfiesPredicate =
+                (elementProperties & characteristicFunction) != 0;
+        } else if (predicateType == PredicateType.Complement) {
+            // Complement: element must not have any properties defined in the characteristic function
+            satisfiesPredicate =
+                (elementProperties & characteristicFunction) == 0;
+        }
+        return false;
+    }
 }
