@@ -7,7 +7,7 @@ contract ASP is RecordCategoryRegistry {
     constructor() RecordCategoryRegistry(msg.sender) {}
 
     /*//////////////////////////////////////////////////////////////////////////
-                     ***ASSOCIATION-SET RELEVANT PUBLIC FUNCTIONS***
+                     ***PUBLIC FUNCTIONS***
     //////////////////////////////////////////////////////////////////////////*/
     /**
      * @notice Applies a predicate to filter elements based on their properties
@@ -27,17 +27,26 @@ contract ASP is RecordCategoryRegistry {
         bytes32[] calldata subset,
         bytes32 characteristicFunction,
         PredicateType predicateType
-    ) external view returns (bytes32[] memory elements, uint256 setCardinality) {
+    ) public view returns (bytes32[] memory elements, uint256 setCardinality) {
         bytes32[] memory satisfyingElements = new bytes32[](subset.length);
         setCardinality = 0;
 
         for (uint256 i = 0; i < subset.length; i++) {
             bytes32 element = subset[i];
-            (bool isMember, bytes32 elementProperties) = getCategoryForRecordHash(domain, element);
+            (
+                bool isMember,
+                bytes32 elementProperties
+            ) = getCategoryForRecordHash(domain, element);
             if (!isMember) {
                 continue;
             }
-            if (_applyPredicate(predicateType, characteristicFunction, elementProperties)) {
+            if (
+                _applyPredicate(
+                    predicateType,
+                    characteristicFunction,
+                    elementProperties
+                )
+            ) {
                 satisfyingElements[setCardinality] = element;
                 setCardinality++;
             }
@@ -65,20 +74,24 @@ contract ASP is RecordCategoryRegistry {
      * @return satisfiesPredicate Whether the element satisfies the predicate
      *
      */
-    function _applyPredicate(PredicateType predicateType, bytes32 characteristicFunction, bytes32 elementProperties)
-        internal
-        pure
-        returns (bool satisfiesPredicate)
-    {
+    function _applyPredicate(
+        PredicateType predicateType,
+        bytes32 characteristicFunction,
+        bytes32 elementProperties
+    ) internal pure returns (bool satisfiesPredicate) {
         if (predicateType == PredicateType.Intersection) {
             // Intersection: element must have all properties defined in the characteristic function
-            satisfiesPredicate = (elementProperties & characteristicFunction) == characteristicFunction;
+            satisfiesPredicate =
+                (elementProperties & characteristicFunction) ==
+                characteristicFunction;
         } else if (predicateType == PredicateType.Union) {
             // Union: element must have at least one property defined in the characteristic function
-            satisfiesPredicate = (elementProperties & characteristicFunction) != 0;
+            satisfiesPredicate =
+                (elementProperties & characteristicFunction) != 0;
         } else if (predicateType == PredicateType.Complement) {
             // Complement: element must not have any properties defined in the characteristic function
-            satisfiesPredicate = (elementProperties & characteristicFunction) == 0;
+            satisfiesPredicate =
+                (elementProperties & characteristicFunction) == 0;
         }
         return false;
     }

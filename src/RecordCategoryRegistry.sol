@@ -3,8 +3,7 @@ pragma solidity ^0.8.4;
 
 /*  OpenZeppelin Imports */
 import {EnumerableMap} from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
-import {AccessControlDefaultAdminRules} from
-    "@openzeppelin/contracts/access/extensions/AccessControlDefaultAdminRules.sol";
+import {AccessControlDefaultAdminRules} from "@openzeppelin/contracts/access/extensions/AccessControlDefaultAdminRules.sol";
 /*  Zk-kit Imports */
 import {InternalLeanIMT, LeanIMTData} from "zk-kit.solidity/packages/lean-imt/contracts/InternalLeanIMT.sol";
 
@@ -49,7 +48,8 @@ contract RecordCategoryRegistry is AccessControlDefaultAdminRules {
 
     /// @dev role identifier used to grant addresses ability to
     ///      update records in the store & recordTrees,
-    bytes32 public constant REGISTRY_ADMIN_ROLE = keccak256("REGISTRY_ADMIN_ROLE");
+    bytes32 public constant REGISTRY_ADMIN_ROLE =
+        keccak256("REGISTRY_ADMIN_ROLE");
 
     /// @notice Mapping of protocol scopes to their record categories
     /// @dev This mapping stores the category bitmaps for each record hash within a protocol scope
@@ -63,7 +63,8 @@ contract RecordCategoryRegistry is AccessControlDefaultAdminRules {
     ///      - bit 1 (000..01): denied
     ///      - bit 2 (000..10): approved
     /// @notice  ⚠️ records cannot be removed or deleted.
-    mapping(uint256 scope => EnumerableMap.Bytes32ToBytes32Map recCatMap) private _scopeRecordCategories;
+    mapping(uint256 scope => EnumerableMap.Bytes32ToBytes32Map recCatMap)
+        private _scopeRecordCategories;
 
     /// @notice Mapping of protocol scopes to their Merkle trees of record hashes
     /// @dev This mapping stores Merkle trees for efficient proof generation of record inclusion
@@ -78,7 +79,8 @@ contract RecordCategoryRegistry is AccessControlDefaultAdminRules {
     ///     iterate through the tree leaf nodes.
     ///     Instead iterate through recCatMap will iterate through the leaf nodes.
     ///     using the at(..) function from EnumerableMap.Bytes32ToBytes32Map library.
-    mapping(uint256 scope => LeanIMTData merkleTree) private _scopeRecordMerkleTrees;
+    mapping(uint256 scope => LeanIMTData merkleTree)
+        private _scopeRecordMerkleTrees;
 
     /*//////////////////////////////////////////////////////////////////////////
                             ***MODIFIERS***
@@ -103,7 +105,10 @@ contract RecordCategoryRegistry is AccessControlDefaultAdminRules {
     /*//////////////////////////////////////////////////////////////////////////
                             ***CONTRACT CONSTRUCTOR***
     //////////////////////////////////////////////////////////////////////////*/
-    constructor(address _registryAdmin) AccessControlDefaultAdminRules(3 days, msg.sender) 
+    constructor(
+        address _registryAdmin
+    )
+        AccessControlDefaultAdminRules(3 days, msg.sender)
     /// Explicit initial `DEFAULT_ADMIN_ROLE` holder
     {
         /// Grant the contract deployer the ability to create stores
@@ -134,10 +139,11 @@ contract RecordCategoryRegistry is AccessControlDefaultAdminRules {
      * @custom:access ⚠️ Restricted to accounts with REGISTRY_ADMIN_ROLE
      *
      */
-    function SetCategoryForRecord(uint256 _scope, bytes32 _recordHash, bytes32 _categoryBitmap)
-        public
-        SufficientRole(REGISTRY_ADMIN_ROLE)
-    {
+    function SetCategoryForRecord(
+        uint256 _scope,
+        bytes32 _recordHash,
+        bytes32 _categoryBitmap
+    ) public SufficientRole(REGISTRY_ADMIN_ROLE) {
         // get current merkle root
         uint256 root = _scopeRecordMerkleTrees[_scope]._root();
         /// .set() will return true/false if recordHash is an existing key
@@ -145,7 +151,9 @@ contract RecordCategoryRegistry is AccessControlDefaultAdminRules {
         if (!_scopeRecordCategories[_scope].set(_recordHash, _categoryBitmap)) {
             /// update the merkle tree with the new record hash
             /// and apply the new root value
-            root = _scopeRecordMerkleTrees[_scope]._insert(uint256(_recordHash));
+            root = _scopeRecordMerkleTrees[_scope]._insert(
+                uint256(_recordHash)
+            );
         }
         /// announce update by emitting an Update event
         emit Update(_scope, root, _scopeRecordCategories[_scope].length());
@@ -154,40 +162,55 @@ contract RecordCategoryRegistry is AccessControlDefaultAdminRules {
     /*//////////////////////////////////////////////////////////////////////////
                             ***GENERAL PUBLIC FUNCTIONS***
     //////////////////////////////////////////////////////////////////////////*/
-    function getCategoryBitmap(uint256 scope, bytes32 recordHash) public view returns (bytes32 categoryBitmap) {
-        (bool exists, bytes32 bitmap) = _scopeRecordCategories[scope].tryGet(recordHash);
+    function getCategoryBitmap(
+        uint256 scope,
+        bytes32 recordHash
+    ) public view returns (bytes32 categoryBitmap) {
+        (bool exists, bytes32 bitmap) = _scopeRecordCategories[scope].tryGet(
+            recordHash
+        );
         require(exists, "Record not found");
         return bitmap;
     }
 
-    function getRecordHashAndCategoryAt(uint256 scope, uint256 index)
-        public
-        view
-        returns (bytes32 category, bytes32 recordHash)
-    {
+    function getRecordHashAndCategoryAt(
+        uint256 scope,
+        uint256 index
+    ) public view returns (bytes32 category, bytes32 recordHash) {
         return _scopeRecordCategories[scope].at(index);
     }
 
-    function getCategoryForRecordHash(uint256 scope, bytes32 recordHash)
-        public
-        view
-        returns (bool exists, bytes32 categoryBitmap)
-    {
+    function getCategoryForRecordHash(
+        uint256 scope,
+        bytes32 recordHash
+    ) public view returns (bool exists, bytes32 categoryBitmap) {
         return _scopeRecordCategories[scope].tryGet(recordHash);
     }
 
-    function getRecordHashesAndCategories(uint256 scope, uint256 from, uint256 to)
+    function getRecordHashesAndCategories(
+        uint256 scope,
+        uint256 from,
+        uint256 to
+    )
         public
         view
-        returns (bytes32[] memory recordHashes, bytes32[] memory categoryBitmaps)
+        returns (
+            bytes32[] memory recordHashes,
+            bytes32[] memory categoryBitmaps
+        )
     {
-        require(from < to && to <= _scopeRecordCategories[scope].length(), "Invalid range");
+        require(
+            from < to && to <= _scopeRecordCategories[scope].length(),
+            "Invalid range"
+        );
         uint256 length = to - from;
         recordHashes = new bytes32[](length);
         categoryBitmaps = new bytes32[](length);
 
         for (uint256 i = 0; i < length; i++) {
-            (categoryBitmaps[i], recordHashes[i]) = _scopeRecordCategories[scope].at(from + i);
+            (categoryBitmaps[i], recordHashes[i]) = _scopeRecordCategories[
+                scope
+            ].at(from + i);
         }
     }
 }
