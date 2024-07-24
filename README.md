@@ -29,14 +29,15 @@ Please refer to the [ASP Spec V1.0](https://0xbow-io.github.io/asp-spec-v1.0/) f
 
 ## Current Deployments
 
-| Chain   | Contract Address                                                                                                              | Status                |
-| ------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------- |
-| Sepolia | [0xAaf9221E9c337Ba5bA2c4Bd6c0Af8B2D2B9cD286](https://sepolia.etherscan.io/address/0xaaf9221e9c337ba5ba2c4bd6c0af8b2d2b9cd286) | ✅ Deployed           |
-| Gnosis  | [0x9a6425a02a72C6983E45A4939E432Ebe4611f53E](https://gnosisscan.io/address/0x9a6425a02a72C6983E45A4939E432Ebe4611f53E)        | ✅ Deployed           |
-| Mainnet | --------------                                                                                                                | ⚠️ Pending Deployment |
-| Base    | --------------                                                                                                                | ⚠️ Pending Deployment |
+| Chain   | Contract Address                                |
+| ------- | ----------------------------------------------- |
+| Sepolia | [0xaaf9221e9c337ba5ba2c4bd6c0af8b2d2b9cd286][1] |
+| Gnosis  | [0xaaf9221e9c337ba5ba2c4bd6c0af8b2d2b9cd286][2] |
+| Mainnet | ⚠️ Pending Deployment                           |
+| Base    | ⚠️ Pending Deployment                           |
 
----
+[1]: https://sepolia.etherscan.io/address/0xaaf9221e9c337ba5ba2c4bd6c0af8b2d2b9cd286
+[2]: https://gnosisscan.io/address/0x9a6425a02a72C6983E45A4939E432Ebe4611f53E
 
 ## 1. Development:
 
@@ -48,6 +49,7 @@ Ensure you have the following installed:
 - [ ] [Golang (==v1.22.5)](https://go.dev/doc/install)
 - [ ] [AbiGen (>=1.1.4.7-stable](https://geth.ethereum.org/docs/tools/abigen)
 - [ ] [Bun (>=v1.1.19)](https://bun.sh/)
+
 
 ### 1.2. Testing:
 
@@ -84,7 +86,7 @@ forge script --chain $CHAIN script/deployment.s.sol:Deploy_AssociationSetProvide
 
 ## 2. Integration:
 
-Refer to the the [integrations directory](integrations/) for integrating the ASP with other systems / protocols.
+Refer to [`integrations`](/integrations/README.md) for integrating the ASP with other systems / protocols.
 
 ---
 
