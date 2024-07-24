@@ -21,7 +21,7 @@ import {InternalLeanIMT, LeanIMTData} from "zk-kit.solidity/packages/lean-imt/co
  *      Default admin role is set to the deployer of the contract.
  *      Admin also has the ability to grant the store adnmin role.
  *
- * @author  oxbow.io (https://github.com/0xbow-io/asp-store-v1)
+ * @author  oxbow.io (https://github.com/0xbow-io/asp-contract-V1.0)
  */
 contract RecordCategoryRegistry is AccessControlDefaultAdminRules {
     using EnumerableMap for EnumerableMap.Bytes32ToBytes32Map;

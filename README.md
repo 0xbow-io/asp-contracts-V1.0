@@ -1,6 +1,7 @@
 # ASP Contracts V1.0
 
-> [!WARNING] ⚠️ These Smart Contracts are not audited. Use with caution.
+> [!CAUTION]
+> These Smart Contracts are pending audit & should be used with caution.
 
 This repository contains the Solidity smart contracts utilised by the "association-set provider" ASP with go & ts packages for interacting with the contracts.
 

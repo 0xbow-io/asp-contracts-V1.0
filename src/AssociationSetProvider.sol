@@ -20,7 +20,7 @@ import "forge-std/console.sol";
  *      Default admin role is set to the deployer of the contract.
  *      Admin also has the ability to grant the registry adnmin role.
  *
- * @author  oxbow.io (https://github.com/0xbow-io/asp-store-v1)
+ * @author  oxbow.io (https://github.com/0xbow-io/asp-contract-V1.0)
  */
 contract AssociationSetProvider is RecordCategoryRegistry {
     /// @notice Defines the type of predicate to apply
